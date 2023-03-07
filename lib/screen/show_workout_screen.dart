@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../db/workouts/db_workouts_helper.dart';
-import '../db/workouts/workouts.dart';
+import '../db/evaluations.dart';
+import '../db/sets.dart';
+import '../db/db_helper.dart';
+import '../db/workouts.dart';
 
 class ShowWorkoutScreen extends StatelessWidget {
   const ShowWorkoutScreen({Key? key}) : super(key: key);
@@ -14,14 +16,26 @@ class ShowWorkoutScreen extends StatelessWidget {
           onPressed: () {Navigator.pop(context);},
         ),
       ),
-      body: WorkoutList()
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Workouts'),
+            WorkoutList(),
+            Text('Sets'),
+            SetList(),
+            Text('Evaluations'),
+            EvaluationList()
+          ],
+        ),
+      )
     );
   }
 
 
   Widget WorkoutList() {
     return FutureBuilder<List<Workouts>> (
-        future: DBWorkoutsHelper.instance.getWorkouts(),
+        future: DBHelper.instance.getWorkouts(),
         builder: (BuildContext context, AsyncSnapshot<List<Workouts>> snapshot) {
           if (snapshot.hasData) {
             return Container(
@@ -42,6 +56,54 @@ class ShowWorkoutScreen extends StatelessWidget {
         }
     );
 
+  }
+
+  Widget SetList() {
+    return FutureBuilder<List<Sets>> (
+        future: DBHelper.instance.getSets(),
+        builder: (BuildContext context, AsyncSnapshot<List<Sets>> snapshot) {
+          if (snapshot.hasData) {
+            return Container(
+              child: ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  shrinkWrap: true,
+                  itemBuilder: (BuildContext context, int index) {
+                    return ListTile(
+                      leading:Text(snapshot.data![index].id.toString()),
+                      title: Text(snapshot.data![index].workout.toString() + ' ' + snapshot.data![index].weight.toString()+'kg'+ ' ' + snapshot.data![index].targetNumTime.toString() + '회' ),
+                    );
+                  }
+              ),
+            );
+          } else {
+            return Center(child: Text('데이터가 없습니다.'));
+          }
+        }
+    );
+  }
+
+  Widget EvaluationList() {
+    return FutureBuilder<List<Evaluations>> (
+        future: DBHelper.instance.getEvaluations(),
+        builder: (BuildContext context, AsyncSnapshot<List<Evaluations>> snapshot) {
+          if (snapshot.hasData) {
+            return Container(
+              child: ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  shrinkWrap: true,
+                  itemBuilder: (BuildContext context, int index) {
+                    return ListTile(
+                      leading:Text(snapshot.data![index].id.toString()),
+                      title: Text(snapshot.data![index].set.toString() + 'set' + ' ' + snapshot.data![index].type),
+                    );
+                  }
+              ),
+            );
+          } else {
+            return Center(child: Text('데이터가 없습니다.'));
+          }
+        }
+    );
   }
 
 

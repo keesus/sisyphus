@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../db/workouts/db_workouts_helper.dart';
-import '../db/workouts/workouts.dart';
+import '../db/db_helper.dart';
+import '../db/workouts.dart';
 
 class AddWorkoutScreen extends StatefulWidget {
   const AddWorkoutScreen({Key? key}) : super(key: key);
@@ -37,9 +37,9 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          createdAt = DateTime.now().toString();
-          updatedAt = DateTime.now().toString();
-          await DBWorkoutsHelper.instance.insert(Workouts(name: textController.text, created_at: createdAt, updated_at: updatedAt));
+          createdAt = DateTime.now().toIso8601String();
+          updatedAt = DateTime.now().toIso8601String();
+          await DBHelper.instance.insertWorkouts(Workouts(name: textController.text, created_at: createdAt, updated_at: updatedAt));
           setState(() {
             textController.clear();
           });
