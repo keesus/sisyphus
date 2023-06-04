@@ -38,6 +38,10 @@ dependencies:
   path_provider: ^2.0.13
   intl: ^0.18.0
   collection: ^1.16.0
+  grouped_list: ^5.1.2
+  group_list_view: ^1.1.1
+  wakelock: ^0.6.2
+  shared_preferences: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +76,14 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/assets-and-images/#from-packages
 
+  fonts:
+    - family: Jamsil
+      fonts:
+        - asset: fonts/The Jamsil 1 Thin.ttf
+        - asset: fonts/The Jamsil 2 Light.ttf
+        - asset: fonts/The Jamsil 3 Regular.ttf
+        - asset: fonts/The Jamsil 4 Medium.ttf
+        - asset: fonts/The Jamsil 5 Bold.ttf
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
   # "family" key with the font family name, and a "fonts" key with a

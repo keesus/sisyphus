@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sisyphus/screen/add_workout_screen.dart';
-import 'package:sisyphus/screen/show_workout_screen.dart';
+import 'package:sisyphus/screen/lazy_loading.dart';
+import 'package:sisyphus/screen/workout_history_screen.dart';
 import '../db/evaluations.dart';
 import '../db/sets.dart';
 import '../db/db_helper.dart';
 import '../db/workouts.dart';
 import 'package:collection/collection.dart';
+
+enum TimerType { UP, DOWN }
+enum APP_STATUS { FINISH, IN_WORKOUT, IN_BREAK }
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -16,318 +22,604 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  final ScrollController _scrollController = ScrollController();
 
   Timer? countTimer;
-  Duration myDuration = Duration(days: 5);
-  bool isStart = false;
+  Duration myDuration = Duration(minutes: 0, seconds: 00);
+  bool wasPause = false;
 
-  late int weight;
-  late int reps;
+  APP_STATUS workoutMode = APP_STATUS.FINISH;
+
+  late int timerMinutes;
+  late int timerSeconds;
+  late int targetWeight;
+  late int newWeight;
+  late int targetReps;
+  late int newReps;
   late List<Workouts> workouts;
   late List<Sets> sets;
   late Workouts nowWorkout;
+  late int nowSetNumber;
+  late String nowWorkoutName;
+  late double _scale;
+
 
   int id = 0;
 
-  List<int> setIDs = [];
-  List<int> completedWeights = [];
-  List<int> completedReps = [];
-  List<String> completedTypes = [];
+  late List<Map<String, dynamic>> todayCompletedWorkouts;
+  late List<Map<String, dynamic>> todayTargetWorkouts;
+  late List<Map<String, dynamic>> workoutList;
 
-  late List<TodaySet> todaySets;
-
-  late int averageWeight;
-  late int averageReps;
+  late Map<String, List> todayCompletedWorkoutsInGroup;
+  late int workoutIndex;
 
   @override
   void initState() {
-    weight = 100;
-    reps = 5;
-    todaySets = [];
-    averageWeight = 0;
-    averageReps = 0;
-    nowWorkout = Workouts(id:1 , created_at: '초기값', updated_at: '초기값', name: '');
-    getFirstWorkout();
+    WidgetsBinding.instance.addObserver(this);
     super.initState();
-  }
+    nowWorkoutName = '';
+    targetWeight = 0;
+    newWeight = 0;
+    targetReps = 1;
+    newReps = 0;
+    todayCompletedWorkouts = [];
+    todayTargetWorkouts = [];
+    workoutList = [];
+    workoutIndex = 0;
+    timerMinutes = 0;
+    timerSeconds = 0;
+    nowSetNumber = 1;
+    _scale = 100;
 
-
-  void setAverageWeightReps() async {
-    // 해당 운동을 했던 세트 조회
-    sets = await DBHelper.instance.recentSet(nowWorkout.id!);
-    // 해당 세트들이 수행된 날짜리스트
-    final dates = sets.map((e) => e.date).toList();
-    print('dates: $dates');
-    List<int> setNumbers = [];
-
-    for(int i = 0; i < dates.length; i++) {
-      var temp = await DBHelper.instance.recentSetNumber(dates[i], nowWorkout.id!);
-      setNumbers.add(temp!);
-    }
-    // var setNumbers = await DBHelper.instance.recentSetNumber(dates[0], nowWorkout.id!);
-    print('setNumbers: $setNumbers');
-
-    final recentWeights = sets.map((set) => set.weight!).toList();
-    final recentReps = sets.map((set) => set.targetNumTime).toList();
-    setState(() {
-      averageWeight = recentWeights.average.round();
-      averageReps = recentReps.average.round();
-
-      weight = averageWeight;
-      reps = averageReps;
-    });
-
-  }
-  void getFirstWorkout() async {
-    workouts = await DBHelper.instance.getWorkouts();
-    setState(() {
-      nowWorkout = (workouts.toList()..shuffle()).first;
-    });
+    todayCompletedWorkoutsInGroup = {};
     setCompletedWeightsSetsEvaluations();
 
+    var temp = DBHelper.instance.getTodayTargetWorkouts();
+
   }
 
-  void setCompletedWeightsSetsEvaluations() async {
-    setAverageWeightReps();
 
-    todaySets = [];
-    int setNumber = 1;
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    List<Item>sets = await DBHelper.instance.getTodaySet(nowWorkout.id!);
-    sets.forEach((element) async {
-      TodaySet todaySet = TodaySet();
-      todaySet.number = setNumber++;
-      todaySet.completedWeight = element.weight;
-      todaySet.completedRep = element.target_num_time;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    var prefs = await SharedPreferences.getInstance();
+    switch (state)  {
+      case AppLifecycleState.resumed:
+        print("app in resumed");
 
-      List<Item>evaluations = await DBHelper.instance.getTodayEvaluation(element.id!);
+        setCompletedWeightsSetsEvaluations();
+        if(wasPause == false) {
 
-      evaluations.forEach((value) {
-        todaySet.completedType = value.type!;
-      });
-
-      setState(() {
-        todaySets.add(todaySet);
-      });
-    });
-
-
+        } else {
+          DateTime lastUnstoppedTimerValue = DateTime.parse(prefs.getString('timerStartTime')!);
+          print(lastUnstoppedTimerValue);
+          Duration timeElapsed = DateTime.now().difference(lastUnstoppedTimerValue);
+          print('now: ' + DateTime.now().toString());
+          print('timeElapsed: ' + timeElapsed.toString());
+          if (todayCompletedWorkouts.length == 0) {
+            resetTimer(0, 0);
+          } else if (todayCompletedWorkouts.length > 0 ) {
+            print("current duration: " + myDuration.toString());
+            myDuration = myDuration + timeElapsed;
+          }
+          setState(() {
+            wasPause = false;
+          });
+        }
+        break;
+      case AppLifecycleState.inactive:
+        print("app in inactive");
+        if(wasPause == false) {
+          prefs.setString('timerStartTime', DateTime.now().toString());
+        }
+        break;
+      case AppLifecycleState.paused:
+        prefs.setString('timerStartTime', DateTime.now().toString());
+        setState(() {
+          wasPause = true;
+        });
+        print("app in paused");
+        break;
+      case AppLifecycleState.detached:
+        print("app in detached");
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-              onPressed: () { Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => AddWorkoutScreen()));},
-              icon: Icon(Icons.add)
-          ),
-          IconButton(
-              onPressed: () { Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => ShowWorkoutScreen()));},
-              icon: Icon(Icons.list)
-          ),
-        ],
-        foregroundColor: Colors.black,
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Container(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            workoutSelect(),
-            workoutInfo(),
-            counter(),
-            controlPanel(),
+    TextStyle _onWorkoutTextStyle = TextStyle(color: Colors.pink);
+    TextStyle _onBreakTextStyle = TextStyle(color: Color(0xff04A777));
+
+    return Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: workoutMode == APP_STATUS.FINISH ? Container() : workoutMode == APP_STATUS.IN_BREAK ? Text('휴식중', style: _onBreakTextStyle,) : Text('운동중', style: _onWorkoutTextStyle,),
+          actions: [
+            IconButton(
+                onPressed: () {
+                  Navigator.push(context,MaterialPageRoute(
+                      // builder: (context) => AddWorkoutScreen()
+                    builder: (context) => LazyLoading()
+                  )
+                  ).then((value) {
+                    //Navigation Stack이 다시 돌아왔을때 콜백
+                    setTargetWorkout();
+                    setState(() {
+                      workoutIndex = 1;
+                    });
+                  }
+                  );
+                },
+                icon: Icon(Icons.browser_not_supported)),
+            IconButton(
+                onPressed: () {
+                  Navigator.push(context,MaterialPageRoute(
+                      builder: (context) => AddWorkoutScreen()
+                      // builder: (context) => LazyLoading()
+                  )
+                  ).then((value) {
+                    //Navigation Stack이 다시 돌아왔을때 콜백
+                    setTargetWorkout();
+
+                    setState(() {
+                      workoutIndex = 1;
+                    });
+                  }
+                  );
+                },
+                icon: Icon(Icons.add)),
+            IconButton(
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => WorkoutHistoryScreen()
+                      )
+                  );
+                },
+                icon: Icon(Icons.history_rounded)),
           ],
-        )
-      )
+          foregroundColor: Colors.black,
+          backgroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              children: [
+                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? workoutInfo() : Container(),
+                SizedBox(height: 20),
+                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? counter() : Container(),
+                SizedBox(height: 20),
+                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? controlPanel(targetWeight, targetReps) : Container(),
+                SizedBox(height: 20),
+                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? startStopButton() : Container(),
+                SizedBox(height: 20),
+                menuLabel('오늘의 운동'),
+                todayCompletedSets()
+              ],
+            ),
+          ),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        floatingActionButton: workoutMode == APP_STATUS.FINISH ? FloatingActionButton(
+          child: Icon(Icons.download),
+          onPressed: () {
+            setAppStatus(APP_STATUS.IN_BREAK);
+            setState(() {
+              workoutIndex = 0;
+            });
+            setTargetWorkout();
+            Future.delayed(const Duration(milliseconds: 500), () {
+              setLatestWeightReps();
+            });
 
+          },
+        ): FloatingActionButton(
+          child: Icon(Icons.sports_score_rounded),
+          onPressed: () {
+            setState(() {
+              if(countTimer != null) {
+                stopTimer();
+                resetTimer(0, 0);
+              }
+              setAppStatus(APP_STATUS.FINISH);
+            });
+    },
+        )
     );
   }
 
-  Widget workoutSelect() {
-    return Container(
+  Widget menuLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(onPressed: () {
-            setState(() {
-              nowWorkout = (workouts.toList()..shuffle()).first;
-            });
-            setCompletedWeightsSetsEvaluations();
-          }, icon: Icon(Icons.arrow_back_ios_outlined)),
-          IconButton(onPressed: () {
-            setState(() {
-              nowWorkout = (workouts.toList()..shuffle()).first;
-            });
-            setCompletedWeightsSetsEvaluations();
-          }, icon: Icon(Icons.arrow_forward_ios_outlined))
-
-      ],
+          Text(text, style: TextStyle(fontSize: 20, color: Colors.pink))
+        ],
       ),
     );
   }
-
   Widget workoutInfo() {
     return Container(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      height: 70,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Text(nowWorkout.name, style: TextStyle(fontSize: 20),)
-        ],
+          Text(
+            nowWorkoutName,
+            style: TextStyle(fontSize: 20),
+          ),
+          Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            workoutMode == APP_STATUS.IN_BREAK ? IconButton(
+                onPressed: () async {
+                  if(workoutIndex > 0) {
+                    setState(() {
+                      workoutIndex--;
+                    });
+                    setNowWorkoutName(todayTargetWorkouts[workoutIndex]['name']);
+                    int setNumber = await DBHelper.instance.getTodayCompletedSetsNumberOfWorkout(todayTargetWorkouts[workoutIndex]['workout']);
+                    setNowSetNumber(setNumber + 1);
+                    setLatestWeightReps();
+                  }
+                }, icon: Icon(Icons.arrow_back_ios_new_outlined)) : Container(),
+            workoutMode == APP_STATUS.IN_BREAK ? IconButton(
+                onPressed: () async {
+                  if(workoutIndex < todayTargetWorkouts.length - 1 ) {
+                    setState(() {
+                      workoutIndex++;
+                    });
+                    setNowWorkoutName(todayTargetWorkouts[workoutIndex]['name']);
+                    int setNumber = await DBHelper.instance.getTodayCompletedSetsNumberOfWorkout(todayTargetWorkouts[workoutIndex]['workout']);
+                    setNowSetNumber(setNumber + 1);
+                    setLatestWeightReps();
+                  }
+                }, icon: Icon(Icons.arrow_forward_ios_outlined)) : Container()
+          ],
+        ),
+      ]
       ),
     );
   }
-  Widget counter() {
 
-    String strDigits(int n) => n.toString().padLeft(2, '0');
-    final days = strDigits(myDuration.inDays);
-    final hours = strDigits(myDuration.inHours.remainder(24));
-    final minutes = strDigits(myDuration.inMinutes.remainder(60));
-    final seconds = strDigits(myDuration.inSeconds.remainder(60));
-    late int setID;
+  Widget startStopButton() {
+    int setID;
     //일단 다 clear 한것으로.
     String type = 'clear';
 
+    return workoutMode == APP_STATUS.IN_BREAK
+        ? ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        primary: Color(0xff04A777),
+        shape: const CircleBorder(),
+        fixedSize: const Size(180, 180),
+      ),
+      onPressed: () {
+        setAppStatus(APP_STATUS.IN_WORKOUT);
+        if (countTimer != null) {
+          setState(() {
+            timerMinutes = 0;
+            timerSeconds = 0;
+          });
+          resetTimer(this.timerMinutes, this.timerSeconds);
+        }
+        startTimer(TimerType.UP);
+        _changeScale();
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.play_arrow_rounded, size: 90),
+          Text('$nowSetNumber세트 시작' , style: TextStyle(fontSize: 20)),
+        ],
+      ),
+    ) : ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        shape: const CircleBorder(),
+        fixedSize: const Size(180, 180),
+        animationDuration: Duration(milliseconds: 300),
+      ),
+      onPressed: () async {
+        setAppStatus(APP_STATUS.IN_BREAK);
+        setState((){
+          setNowSetNumber(nowSetNumber + 1);
+        });
+
+        String strDigits(int n) => n.toString().padLeft(2, '0');
+        final seconds = strDigits(myDuration.inSeconds.remainder(60));
+        final minutes = strDigits(myDuration.inMinutes.remainder(60));
+
+        setID = await DBHelper.instance.insertSets(Sets(workout: todayTargetWorkouts[workoutIndex]['workout'], targetNumTime: this.targetReps, weight: this.targetWeight, createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
+        await DBHelper.instance.insertEvaluations(Evaluations(set: setID, type: type, resultNumTime: this.targetReps, elapsedTime: '$minutes:$seconds', createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
+
+        if (countTimer == null || countTimer!.isActive) {
+          setState(() {
+            timerMinutes = 0;
+            timerSeconds = 0;
+          });
+          resetTimer(this.timerMinutes, this.timerSeconds);
+        }
+        startTimer(TimerType.UP);
+
+        _scrollDown();
+        setCompletedWeightsSetsEvaluations();
+        _changeScale();
+
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.stop, size: 90),
+          Text(
+            '$nowSetNumber세트 종료',
+            style: TextStyle(fontSize: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _changeScale() {
+    setState(() => _scale = _scale == 100 ? 120 : 100);
+  }
+
+  Widget counter() {
+    String strDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = strDigits(myDuration.inMinutes.remainder(60));
+    final seconds = strDigits(myDuration.inSeconds.remainder(60));
+    return Container(
+      height: 140,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder(
+            duration: Duration(milliseconds: 400),
+              tween: Tween<double>(begin: _scale, end: _scale),
+              builder: (_, double size, __) => Text('$minutes:$seconds', style: TextStyle(fontWeight: FontWeight.w100, color: Colors.black, fontSize: size))
+          )
+              // child: Text('$minutes:$seconds', style: const TextStyle(fontWeight: FontWeight.w100, color: Colors.black, fontSize: 80))),
+        ],
+      ),
+    );
+  }
+
+  Widget todayCompletedSets() {
+    return Column(
+      children: [
+        ListView.builder(
+            reverse: true,
+            shrinkWrap: true,
+            controller: _scrollController,
+            itemCount: todayCompletedWorkoutsInGroup.length,
+            itemBuilder: (BuildContext context, int index) {
+              return Theme(
+                data: Theme.of(context)
+                    .copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                    initiallyExpanded: false,
+                    title: Text(todayCompletedWorkoutsInGroup.keys.toList()[index].toString()),
+                    children: List<Widget>.generate(
+                        todayCompletedWorkoutsInGroup.entries.toList()[index].value.length, (int i) {
+                          return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Text((todayCompletedWorkoutsInGroup.entries.toList()[index].value.length - i).toString() + '세트 '),
+                          Text(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['weight'].toString() + 'kg'),
+                          Text(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['target_num_time'].toString() + '회'),
+                          Text(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['type'].toString()),
+                          Text(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['elapsed_time'].toString()),
+                          IconButton(
+                              onPressed: () {
+                                final textInputControllerWeight = TextEditingController();
+                                final textInputControllerReps = TextEditingController();
+
+                                var newWeight = todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['weight'];
+                                var newReps = todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['target_num_time'];
+
+                                showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) => AlertDialog(
+                                        title: Text('수정'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextField(
+                                              keyboardType: TextInputType.number,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.digitsOnly
+                                              ],
+                                              controller: textInputControllerWeight,
+                                              decoration: InputDecoration(
+                                                  hintText: '${newWeight}kg'
+                                              ),
+                                            ),
+                                            TextField(
+                                              keyboardType: TextInputType.number,
+                                              controller: textInputControllerReps,
+                                              decoration: InputDecoration(
+                                                  hintText: '${newReps}회'
+                                              ),
+                                            )
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () {
+                                                if(textInputControllerWeight.text.length > 0) {
+                                                  DBHelper.updateWeight(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['id'], int.parse(textInputControllerWeight.text));
+                                                }
+                                                if(textInputControllerReps.text.length > 0) {
+                                                  DBHelper.updateReps(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['id'], int.parse(textInputControllerReps.text));
+                                                }
+                                                setCompletedWeightsSetsEvaluations();
+                                                Navigator.of(context).pop();
+                                              },
+                                              child: const Text('OK')
+                                          )
+                                        ]
+                                    ));
+                              },
+                              icon: Icon(Icons.edit))
+                        ],
+                      );
+                    })
+                ),
+              );
+            }),
+      ],
+    );
+  }
+
+  Widget controlPanel(int targetWeight, int targetReps) {
+    TextStyle _style = TextStyle(color: Color(0xff04A777));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '$minutes:$seconds',
-          style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-              fontSize: 50),
+        Container(
+          height: 40,
+          child: Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(flex: 1, child: TextButton(child: Text('-10', style: _style,), onPressed: () => reduceWeight(10))),
+              Expanded(flex: 1,child: TextButton(child: Text('-5', style: _style), onPressed: () => reduceWeight(5))),
+              Expanded(flex: 1,child: TextButton(child: Text('-1', style: _style), onPressed: () => reduceWeight(1))),
+              Expanded(flex: 2,child: Text(textAlign: TextAlign.center,'$targetWeight kg', style: TextStyle(fontSize: 20))),
+              Expanded(flex: 1,child: TextButton(child: Text('+1', style: _style), onPressed: () => addWeight(1))),
+              Expanded(flex: 1,child: TextButton(child: Text('+5', style: _style), onPressed: () => addWeight(5))),
+              Expanded(flex: 1,child: TextButton(child: Text('+10', style: _style), onPressed: () => addWeight(10))),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
-        isStart == false ?
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-              fixedSize: const Size(150, 150),
-              shape: const CircleBorder()
-          ),
-          onPressed: startTimer,
-          child: const Text(
-            '시작',
-            style: TextStyle(
-              fontSize: 30,
-            ),
-          ),
-        ):
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-              fixedSize: const Size(150, 150),
-              shape: const CircleBorder()
-          ),
-          onPressed: () async {
-            DateFormat formatter = DateFormat('yyyy-MM-dd');
+        Container(
+          height: 40,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(child: Text('-5', style: _style), onPressed: () => reduceReps(5)),
+              TextButton(child: Text('-1', style: _style), onPressed: () => reduceReps(1)),
+              Text(
+                '$targetReps회',
+                style: TextStyle(fontSize: 20),
+              ),
+              TextButton(child: Text('+1', style: _style), onPressed: () => addReps(1)),
+              TextButton(child: Text('+5', style: _style), onPressed: () => addReps(5)),
 
-            if (countTimer == null || countTimer!.isActive) {
-              resetTimer();
-            }
-            setID = await DBHelper.instance.insertSets(Sets(workout: nowWorkout.id, targetNumTime: this.reps, weight: this.weight, date: formatter.format(DateTime.now()), createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
-            await DBHelper.instance.insertEvaluations(Evaluations(set: setID, type: type, resultNumTime: this.reps, createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
-            setCompletedWeightsSetsEvaluations();
-            },
-          child: const Text('종료', style: TextStyle(fontSize: 30),
+            ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget controlPanel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            TextButton(
-                child: Text('-10'),
-                onPressed: () => reduceWeight(10)
-            ),
-            TextButton(
-                child: Text('-5'),
-                onPressed: () => reduceWeight(5)
-            ),
-            Text('$weight kg', style: TextStyle(fontSize: 20),),
-            TextButton(
-                child: Text('+5'),
-                onPressed: () => addWeight(5)
-            ),
-            TextButton(
-                child: Text('+10'),
-                onPressed: () => addWeight(10)
-            ),
-          ],
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            TextButton(
-                child: Text('-1'),
-                onPressed: () => reduceReps(1)
-            ),
-            Text('$reps회', style: TextStyle(fontSize: 20),),
-            TextButton(
-                child: Text('+1'),
-                onPressed: () => addReps(1)
-            ),
-          ],
-        ),
-        ListView.builder(
-            shrinkWrap: true,
-            itemCount: todaySets.length,
-            itemBuilder: (BuildContext context, int index) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text(todaySets[index].number.toString() + 'SET'),
-                  Text(todaySets[index].completedWeight.toString() + 'KG'),
-                  Text(todaySets[index].completedRep.toString() + '회'),
-                  Text(todaySets[index].completedType.toString())
-                ],
-              );
-            }
         )
-
       ],
     );
+  }
+
+  void setLatestWeightReps() async {
+    var latestWeightReps = await DBHelper.instance.getLatestWeightsReps(todayTargetWorkouts[workoutIndex]['workout']);
+    if (latestWeightReps.isNotEmpty) {
+      setNowWorkoutWeight(latestWeightReps.last['weight']);
+      setNowWorkoutReps(latestWeightReps.last['reps']);
+    } else {
+      setNowWorkoutWeight(0);
+      setNowWorkoutReps(0);
+    }
+  }
+  void setTargetWorkout() async {
+    var workouts = await DBHelper.instance.getWorkouts();
+    // setAppStatus(APP_STATUS.IN_WORKOUT);
+    setState(() {
+      todayTargetWorkouts = workouts;
+    });
+    setNowWorkoutName(todayTargetWorkouts.first['name']);
+
+    int sets = await DBHelper.instance.getTodayCompletedSetsNumberOfWorkout(todayTargetWorkouts.first['workout']);
+    setNowSetNumber(sets + 1);
 
   }
 
-  void startTimer() {
-    countTimer =
-        Timer.periodic(Duration(seconds: 1), (_) => setCountUp());
-    setState(() => isStart = true);
+  void setNowWorkoutName(String workoutName) {
+    setState(() {
+      nowWorkoutName = workoutName;
+    });
   }
-  // Step 4
+
+  void setNowWorkoutWeight(int weight) {
+    setState(() {
+      targetWeight = weight;
+    });
+  }
+
+  void setNowWorkoutReps(int reps) {
+    setState(() {
+      targetReps = reps;
+    });
+  }
+
+  void setNowSetNumber(int number) {
+    setState(() {
+      nowSetNumber = number;
+    });
+  }
+  void setWorkoutIndexUp() {
+    setState(() {
+      workoutIndex++;
+    });
+  }
+
+  void setAppStatus(APP_STATUS status) {
+    setState(() {
+      workoutMode = status;
+    });
+  }
+
+  void setCompletedWeightsSetsEvaluations() async {
+    DateFormat formatter = DateFormat('yyyy-MM-dd');
+    String today = formatter.format(DateTime.now());
+    var completedWorkouts = await DBHelper.instance.getCompletedWorkouts(today);
+    setState(() {
+      todayCompletedWorkouts = completedWorkouts;
+    });
+    todayCompletedWorkoutsInGroup = groupBy(todayCompletedWorkouts, (Map obj) => obj['name']).cast<String, List>();
+  }
+
+  void startTimer(TimerType type) {
+    switch (type) {
+      case TimerType.UP:
+        countTimer = Timer.periodic(Duration(seconds: 1), (_) => setCountUp());
+        break;
+      case TimerType.DOWN:
+        countTimer =
+            Timer.periodic(Duration(seconds: 1), (_) => setCountDown());
+        break;
+    }
+  }
+
   void stopTimer() {
     setState(() => countTimer!.cancel());
-
   }
-  // Step 5
-  void resetTimer() {
+
+  void resetTimer(int min, int sec) {
     stopTimer();
-    setState(() => myDuration = Duration(days: 5));
-    setState(() => isStart = false);
-
+    setState(() => myDuration = Duration(minutes: min, seconds: sec));
   }
-  // Step 6
+
   void setCountDown() {
     final reduceSecondsBy = 1;
     setState(() {
       final seconds = myDuration.inSeconds - reduceSecondsBy;
       if (seconds < 0) {
         countTimer!.cancel();
+        setAppStatus(APP_STATUS.IN_BREAK);
       } else {
         myDuration = Duration(seconds: seconds);
       }
@@ -342,39 +634,35 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  void addWeight(int weight) {
+  void addWeight(int targetWeight) {
     setState(() {
-      this.weight += weight;
+      this.targetWeight += targetWeight;
     });
   }
 
-  void reduceWeight(int weight) {
+  void reduceWeight(int targetWeight) {
     setState(() {
-      this.weight -= weight;
+      this.targetWeight -= targetWeight;
     });
   }
 
   void addReps(int number) {
     setState(() {
-      this.reps += number;
+      this.targetReps += number;
     });
   }
 
   void reduceReps(int number) {
     setState(() {
-      this.reps -= number;
+      this.targetReps -= number;
     });
   }
+
+  void _scrollDown() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: Duration(seconds: 1),
+      curve: Curves.fastOutSlowIn,
+    );
+  }
 }
-
-class TodaySet {
-  int? number;
-  int? completedWeight;
-  int? completedRep;
-  String? completedType;
-
-  TodaySet({ this.number, this.completedWeight, this.completedRep, this.completedType});
-
-}
-
-
