@@ -25,7 +25,7 @@ class DBHelper {
       path,
       version: 16,
       onCreate: _onCreate,
-      onConfigure: _onConfigure
+      // onConfigure: _onConfigure
       // onUpgrade: _onUpgrade
     );
   }
@@ -46,112 +46,6 @@ class DBHelper {
     await db.execute('DROP TABLE IF EXISTS sets');
     await db.execute('DROP TABLE IF EXISTS evaluations');
     await db.execute('DROP TABLE IF EXISTS bodyparts_workouts');
-
-
-    await db.execute('''
-    CREATE TABLE workouts(
-      id INTEGER PRIMARY KEY,
-      name TEXT,
-      created_at TEXT,
-      updated_at TEXT
-    )
-    ''');
-
-    await db.execute(
-        '''
-    CREATE TABLE sets(
-      id INTEGER PRIMARY KEY,
-      workout INTEGER,
-      target_num_time INTEGER,
-      weight INTEGER,
-      created_at TEXT,
-      updated_at TEXT
-    )
-    ''');
-
-    await db.execute(
-        '''
-    CREATE TABLE evaluations(
-      id INTEGER PRIMARY KEY,
-      set_id INTEGER,
-      type TEXT,
-      result_num_time INTEGER,
-      elapsed_time TEXT,
-      created_at TEXT,
-      updated_at TEXT
-    )
-    '''
-    );
-
-    await db.execute(
-        '''
-      CREATE TABLE bodyparts_workouts(
-      id INTEGER PRIMARY KEY,
-      workout INTEGER,
-      bodypart TEXT,
-      created_at TEXT,
-      updated_at TEXT
-      )
-      '''
-    );
-
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(1, "벤치프레스", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(2, "인클라인 벤치프레스", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(3, "딥스", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(4, "케이블 플라이", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(5, "랫풀다운", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(6, "턱걸이", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(7, "벤트오버로우", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(8, "숄더 프레스", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-    await db.execute('INSERT INTO workouts(id, name, created_at, updated_at) VALUES(9, "사레레", "2023-06-04T00:00:00", "2023-06-04T00:00:00")');
-
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(1, 1, 10, 90, "2023-06-03T00:00:00", "2023-06-03T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(2, 2, 10, 90, "2023-06-03T00:00:00", "2023-06-03T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(3, 3, 10, 90, "2023-06-03T00:00:00", "2023-06-03T00:00:00")');
-
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(4, 5, 10, 90, "2023-06-02T00:00:00", "2023-06-02T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(5, 6, 10, 90, "2023-06-02T00:00:00", "2023-06-02T00:00:00")');
-
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(7, 8, 10, 90, "2023-05-31T00:00:00", "2023-05-31T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(8, 9, 10, 90, "2023-05-31T00:00:00", "2023-05-31T00:00:00")');
-
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(9, 1, 10, 90, "2023-05-30T00:00:00", "2023-05-30T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(10, 2, 10, 90, "2023-05-30T00:00:00", "2023-05-30T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(11, 4, 10, 90, "2023-05-30T00:00:00", "2023-05-30T00:00:00")');
-
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(12, 8, 10, 90, "2023-05-27T00:00:00", "2023-05-27T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(13, 9, 10, 90, "2023-05-27T00:00:00", "2023-05-27T00:00:00")');
-
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(14, 5, 10, 90, "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(15, 7, 10, 90, "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO sets(id, workout, target_num_time, weight, created_at, updated_at) VALUES(16, 6, 10, 90, "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(1, 1, "가슴", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(2, 2, "가슴", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(3, 3, "가슴", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(4, 4, "등", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(5, 5, "등", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(6, 6, "등", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(7, 7, "어깨", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(8, 8, "어깨", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO bodyparts_workouts(id, workout, bodypart, created_at, updated_at) VALUES(9, 9, "어깨", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(1, 1, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(2, 2, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(3, 3, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(4, 4, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(5, 5, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(6, 6, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(7, 7, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(8, 8, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(9, 9, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(10, 10, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(11, 11, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(12, 12, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(13, 13, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(14, 14, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(15, 15, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
-    await db.execute('INSERT INTO evaluations(id, set_id, type, result_num_time, elapsed_time, created_at, updated_at) VALUES(16, 16, "clear", 10, "00:30", "2023-05-26T00:00:00", "2023-05-26T00:00:00")');
 
   }
   Future _onCreate(Database db, int version) async {
@@ -201,9 +95,6 @@ class DBHelper {
       )
       '''
     );
-
-
-
   }
 
 
@@ -236,7 +127,6 @@ class DBHelper {
   Future<List<Sets>> getSets() async {
     Database db = await instance.database;
     var sets = await db.query('sets', orderBy: 'created_at');
-    print(sets.last);
     List<Sets> setList = sets.isNotEmpty
         ? sets.map((c) => Sets.fromMap(c)).toList()
         : [];
@@ -277,7 +167,6 @@ class DBHelper {
   }
 
 
-
   Future<List<Map<String, dynamic>>> getElapsedWorkoutTime(DateTime date) async {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(date);
@@ -286,51 +175,69 @@ class DBHelper {
     return result;
   }
 
-  Future<List<Map<String, dynamic>>> getCompletedWorkouts(String today) async {
-    Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE sets.created_at >= ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.created_at', [today]);
-    return result;
-  }
-
-
-  Future<List<Map<String, dynamic>>> getCompletedSets() async {
-    Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at FROM sets, workouts WHERE sets.workout = workouts.id GROUP BY sets.created_at ORDER BY sets.created_at');
-    return result;
-  }
-
-  Future<int> getTodayCompletedSetsNumberOfWorkout(int workout) async {
+  Future<List<Map<String, dynamic>>> getCompletedWorkouts() async {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> queryResult = await db.rawQuery('SELECT COUNT(*) AS count FROM sets WHERE sets.created_at = ? AND sets.workout = ?', [today, workout]);
-    int result = queryResult.first['count'];
+    List<Map<String, dynamic>> result = await db.rawQuery('SELECT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTRING(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.id ', [today]);
+    print(result);
     return result;
   }
 
-  Future<List<Map<String, dynamic>>> getLatestWeightsReps(int workout) async {
+
+  Future<int> getCompletedSetsToday(int workout) async {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT weight, target_num_time AS reps FROM sets WHERE sets.created_at = ? AND sets.workout = ?', [today, workout]);
+    List<Map<String, dynamic>> queryResult = await db.rawQuery('SELECT COUNT(*) AS sets FROM sets WHERE sets.workout = ? AND SUBSTRING(sets.created_at, 0, 10) = ?',[workout, today]);
+    int result = queryResult.first['sets'];
     return result;
   }
 
-  Future<List<Map<String, Object?>>> getTodayTargetWorkouts() async {
+  Future<List<Map<String, dynamic>>> getLatestWeightsRepsToday(int workout) async {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> latestWorkoutDate = await db.rawQuery('SELECT SUBSTRING(created_at, 0, 10) as created_at FROM sets GROUP BY SUBSTRING(created_at, 0, 10) ORDER BY id ASC');
-    print('최근 운동한 날짜: $latestWorkoutDate');
+    List<Map<String, dynamic>> result = await db.rawQuery('SELECT weight, target_num_time AS reps FROM sets WHERE SUBSTRING(sets.created_at, 0 ,10) = ? AND sets.workout = ?', [today, workout]);
+    print('$workout의 오늘 수행한  무게, 횟수는: $result');
+    return result;
+  }
+
+  Future<List<Map<String, Object?>>> getTodayTargetWorkoutId() async {
+    DateFormat formatter = DateFormat('yyyy-MM-dd');
+    String today = formatter.format(DateTime.now());
+    Database db = await instance.database;
+    List<Map<String, dynamic>> latestWorkoutDate = await db.rawQuery('SELECT SUBSTRING(created_at, 0, 10) as created_at FROM sets WHERE SUBSTRING(created_at, 0, 10) < ? GROUP BY SUBSTRING(created_at, 0, 10) ORDER BY id DESC',[today]);
+    // print('최근 운동한 날짜: $latestWorkoutDate');
+    if(latestWorkoutDate.length == 0) {
+      return [];
+    }
     List<Map<String, dynamic>> latestWorkoutId = await db.rawQuery('SELECT sets.workout FROM sets WHERE SUBSTRING(created_at, 0, 10) = ? GROUP BY sets.workout', [latestWorkoutDate.first['created_at'].toString().substring(0, 10)]);
-    print('최근 운동 id' + latestWorkoutId.first.toString());
+    // print('최근 운동 id' + latestWorkoutId.first.toString());
     List<Map<String, dynamic>> secondLatestWorkoutDate = await db.rawQuery('SELECT SUBSTRING(created_at, 0, 10) as created_at FROM sets WHERE SUBSTRING(created_at, 0, 10) < ? AND workout = ? ORDER BY id DESC',[latestWorkoutDate.first['created_at'].toString().substring(0, 10), latestWorkoutId.first['workout']]);
-    print('두번째 최근 운동 날짜' + secondLatestWorkoutDate.toString());
-    List<Map<String, dynamic>> targetWorkoutIds = await db.rawQuery('SELECT workout FROM sets WHERE SUBSTRING(created_at, 0, 10) > ? AND SUBSTRING(created_at, 0, 10) < ? GROUP BY workout ORDER BY id ASC', [secondLatestWorkoutDate.first['created_at'].toString().substring(0, 10), today]);
-    print(targetWorkoutIds)    ;
-    return targetWorkoutIds;
+    // print('두번째 최근 운동 날짜' + secondLatestWorkoutDate.toString());
+    if(secondLatestWorkoutDate.length == 0) {
+      return [];
+    }
+    List<Map<String, dynamic>> targetWorkoutIds = await db.rawQuery('SELECT sets.workout, workouts.name, SUBSTRING(sets.created_at, 0, 10) as workout_date FROM sets, workouts WHERE sets.workout = workouts.id AND SUBSTRING(sets.created_at, 0, 10) > ? AND SUBSTRING(sets.created_at, 0, 10) < ? GROUP BY sets.workout ORDER BY sets.created_at ASC', [secondLatestWorkoutDate.first['created_at'].toString().substring(0, 10), today]);
+    // print('targetWorkoutIDs: $targetWorkoutIds');
+   return targetWorkoutIds;
 
   }
+
+  Future<List<Map<String, dynamic>>> getTodayTargetWorkouts(List<Map<String, dynamic>> workoutIdList) async {
+    List<Map<String, dynamic>> result = [];
+    Database db = await instance.database;
+
+    for (int i = 0; i < workoutIdList.length; i ++) {
+      var temp = await db.rawQuery('SELECT workouts.id AS workout_id, workouts.name AS workout_name, evaluations.result_num_time AS reps, sets.weight, sets.created_at AS workout_date FROM sets, evaluations, workouts WHERE workouts.id = sets.workout AND evaluations.set_id = sets.id AND sets.workout = ? AND SUBSTRING(sets.created_at, 0, 10) = ? ORDER BY sets.id ASC', [workoutIdList[i]['workout'], workoutIdList[i]['workout_date']]);
+      result.addAll(temp);
+      }
+
+    return result;
+  }
+
+
 
   static void updateWeight(int setID, int weight) async {
 
@@ -353,6 +260,12 @@ class DBHelper {
     await db.update('sets', data, where: 'id = ?', whereArgs: [setID]);
   }
 
+
+  static void deleteSets(int id) async {
+    print('delete set id : $id');
+    Database db = await instance.database;
+    await db.delete('sets', where: 'id = ?' , whereArgs: [id]);
+  }
 
 
 }

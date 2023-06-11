@@ -54,6 +54,19 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   late Map<String, List> todayCompletedWorkoutsInGroup;
   late int workoutIndex;
 
+
+  final snackBar = SnackBar(
+    behavior: SnackBarBehavior.floating,
+    duration: Duration(milliseconds: 500),
+    content: const Text('이전에 수행한 세트를 모두 완료했어요.'),
+    action: SnackBarAction(
+      label: '',
+      onPressed: () {
+        // Some code to undo the change.
+      },
+    ),
+  );
+
   @override
   void initState() {
     WidgetsBinding.instance.addObserver(this);
@@ -73,10 +86,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     _scale = 100;
 
     todayCompletedWorkoutsInGroup = {};
-    setCompletedWeightsSetsEvaluations();
-
-    var temp = DBHelper.instance.getTodayTargetWorkouts();
-
+    setTodayCompletedWorkouts();
   }
 
 
@@ -93,8 +103,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     switch (state)  {
       case AppLifecycleState.resumed:
         print("app in resumed");
-
-        setCompletedWeightsSetsEvaluations();
+        setTodayCompletedWorkouts();
         if(wasPause == false) {
 
         } else {
@@ -214,13 +223,19 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         floatingActionButton: workoutMode == APP_STATUS.FINISH ? FloatingActionButton(
           child: Icon(Icons.download),
           onPressed: () {
+
             setAppStatus(APP_STATUS.IN_BREAK);
             setState(() {
               workoutIndex = 0;
             });
+
             setTargetWorkout();
-            Future.delayed(const Duration(milliseconds: 500), () {
-              setLatestWeightReps();
+
+            Future.delayed(const Duration(milliseconds: 300), () async{
+              var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
+              setNowSetNumber(temp + 1);
+              setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
+
             });
 
           },
@@ -265,26 +280,25 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             workoutMode == APP_STATUS.IN_BREAK ? IconButton(
                 onPressed: () async {
                   if(workoutIndex > 0) {
-                    setState(() {
-                      workoutIndex--;
-                    });
+                    setWorkoutIndexDecrease();
                     setNowWorkoutName(todayTargetWorkouts[workoutIndex]['name']);
-                    int setNumber = await DBHelper.instance.getTodayCompletedSetsNumberOfWorkout(todayTargetWorkouts[workoutIndex]['workout']);
-                    setNowSetNumber(setNumber + 1);
-                    setLatestWeightReps();
                   }
+                  var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
+                  setNowSetNumber(temp + 1);
+                  setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
+
+
                 }, icon: Icon(Icons.arrow_back_ios_new_outlined)) : Container(),
             workoutMode == APP_STATUS.IN_BREAK ? IconButton(
                 onPressed: () async {
                   if(workoutIndex < todayTargetWorkouts.length - 1 ) {
-                    setState(() {
-                      workoutIndex++;
-                    });
+                    setWorkoutIndexIncrease();
                     setNowWorkoutName(todayTargetWorkouts[workoutIndex]['name']);
-                    int setNumber = await DBHelper.instance.getTodayCompletedSetsNumberOfWorkout(todayTargetWorkouts[workoutIndex]['workout']);
-                    setNowSetNumber(setNumber + 1);
-                    setLatestWeightReps();
                   }
+                  var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
+                  setNowSetNumber(temp + 1);
+                  setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
+
                 }, icon: Icon(Icons.arrow_forward_ios_outlined)) : Container()
           ],
         ),
@@ -295,7 +309,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 
   Widget startStopButton() {
     int setID;
-    //일단 다 clear 한것으로.
+    //일단 다 clear 한것으로
     String type = 'clear';
 
     return workoutMode == APP_STATUS.IN_BREAK
@@ -340,6 +354,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         final seconds = strDigits(myDuration.inSeconds.remainder(60));
         final minutes = strDigits(myDuration.inMinutes.remainder(60));
 
+
         setID = await DBHelper.instance.insertSets(Sets(workout: todayTargetWorkouts[workoutIndex]['workout'], targetNumTime: this.targetReps, weight: this.targetWeight, createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
         await DBHelper.instance.insertEvaluations(Evaluations(set: setID, type: type, resultNumTime: this.targetReps, elapsedTime: '$minutes:$seconds', createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
 
@@ -352,10 +367,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         }
         startTimer(TimerType.UP);
 
+        setTodayCompletedWorkouts();
+        setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
         _scrollDown();
-        setCompletedWeightsSetsEvaluations();
         _changeScale();
-
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -462,7 +477,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                                 if(textInputControllerReps.text.length > 0) {
                                                   DBHelper.updateReps(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['id'], int.parse(textInputControllerReps.text));
                                                 }
-                                                setCompletedWeightsSetsEvaluations();
+                                                setTodayCompletedWorkouts();
                                                 Navigator.of(context).pop();
                                               },
                                               child: const Text('OK')
@@ -470,7 +485,30 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                         ]
                                     ));
                               },
-                              icon: Icon(Icons.edit))
+                              icon: Icon(Icons.edit)
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) => AlertDialog(
+                                title: Text('세트를 삭제합니다.'),
+                                    actions: [
+                                      TextButton(onPressed: () async {
+                                        DBHelper.deleteSets(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['id']);
+                                        setTodayCompletedWorkouts();
+                                        var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
+                                        setNowSetNumber(temp + 1);
+                                        Navigator.of(context).pop();
+                                      }, child: Text('네')),
+                                      TextButton(onPressed: () {
+                                        Navigator.of(context).pop();
+                                      }, child: Text('취소'))
+                                    ],
+                              ));
+                            },
+                          )
                         ],
                       );
                     })
@@ -524,8 +562,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 
-  void setLatestWeightReps() async {
-    var latestWeightReps = await DBHelper.instance.getLatestWeightsReps(todayTargetWorkouts[workoutIndex]['workout']);
+  void setLatestWeightReps(int workoutID) async {
+    var latestWeightReps = await DBHelper.instance.getLatestWeightsRepsToday(workoutID);
     if (latestWeightReps.isNotEmpty) {
       setNowWorkoutWeight(latestWeightReps.last['weight']);
       setNowWorkoutReps(latestWeightReps.last['reps']);
@@ -534,16 +572,47 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       setNowWorkoutReps(0);
     }
   }
-  void setTargetWorkout() async {
-    var workouts = await DBHelper.instance.getWorkouts();
-    // setAppStatus(APP_STATUS.IN_WORKOUT);
-    setState(() {
-      todayTargetWorkouts = workouts;
-    });
-    setNowWorkoutName(todayTargetWorkouts.first['name']);
 
-    int sets = await DBHelper.instance.getTodayCompletedSetsNumberOfWorkout(todayTargetWorkouts.first['workout']);
-    setNowSetNumber(sets + 1);
+  void setTargetWeightReps(int workoutID, setInNumber) async {
+    var todayTargetWorkoutId = await DBHelper.instance.getTodayTargetWorkoutId();
+
+    if(todayTargetWorkoutId.length > 0 ) {
+      var result = await DBHelper.instance.getTodayTargetWorkouts(todayTargetWorkoutId);
+      var resultInWorkoutGroup = groupBy(result, (Map obj) => obj['workout_id']);
+
+      resultInWorkoutGroup.keys.forEachIndexed((index, element) {
+        if(element == workoutID) {
+          //이전 수행했던 세트정보가 있으면 해당 세트 정보로 업데이트
+          if (resultInWorkoutGroup.entries.toList()[index].value.length >= setInNumber) {
+            setNowWorkoutWeight(resultInWorkoutGroup.entries.toList()[index].value.toList()[setInNumber - 1]['weight']);
+            setNowWorkoutReps(resultInWorkoutGroup.entries.toList()[index].value.toList()[setInNumber - 1]['reps']);
+          }
+          //이전 수행했던 세트정보가 없으면 가장 최신의 세트 정보로 업데이트
+          else {
+            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+            setLatestWeightReps(workoutID);
+          }
+        }
+      });
+    } else {
+      setLatestWeightReps(workoutID);
+    }
+
+  }
+  void setTargetWorkout() async {
+    var todayTargetWorkoutId = await DBHelper.instance.getTodayTargetWorkoutId();
+    var allWorkouts = await DBHelper.instance.getWorkouts();
+    if (todayTargetWorkoutId.length > 0) {
+      setState(() {
+        todayTargetWorkouts = todayTargetWorkoutId;
+      });
+    } else {
+      setState(() {
+        todayTargetWorkouts = allWorkouts;
+      });
+    }
+
+    setNowWorkoutName(todayTargetWorkouts.first['name']);
 
   }
 
@@ -570,9 +639,16 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       nowSetNumber = number;
     });
   }
-  void setWorkoutIndexUp() {
+  void setWorkoutIndexIncrease() {
+    if (workoutIndex < todayTargetWorkouts.length - 1 ) {
+      setState(() {
+        workoutIndex++;
+      });
+    }
+  }
+  void setWorkoutIndexDecrease() {
     setState(() {
-      workoutIndex++;
+      workoutIndex--;
     });
   }
 
@@ -582,14 +658,17 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     });
   }
 
-  void setCompletedWeightsSetsEvaluations() async {
-    DateFormat formatter = DateFormat('yyyy-MM-dd');
-    String today = formatter.format(DateTime.now());
-    var completedWorkouts = await DBHelper.instance.getCompletedWorkouts(today);
+  void setTodayCompletedWorkouts() async {
+
+    var completedWorkouts = await DBHelper.instance.getCompletedWorkouts();
+    // print('completedWorkouts: $completedWorkouts');
+
     setState(() {
       todayCompletedWorkouts = completedWorkouts;
     });
+    print('todayCompletedWorkouts: $todayCompletedWorkouts');
     todayCompletedWorkoutsInGroup = groupBy(todayCompletedWorkouts, (Map obj) => obj['name']).cast<String, List>();
+    // print('todayCompletedWorkoutsInGroup : $todayCompletedWorkoutsInGroup');
   }
 
   void startTimer(TimerType type) {
