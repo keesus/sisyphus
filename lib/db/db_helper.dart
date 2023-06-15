@@ -120,7 +120,7 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getWorkouts() async {
     Database db = await instance.database;
-    List<Map<String, dynamic>> workouts = await db.rawQuery('SELECT id AS workout, name, created_at, updated_at FROM workouts ORDER BY created_at');
+    List<Map<String, dynamic>> workouts = await db.rawQuery('SELECT id AS workout, name, SUBSTRING(created_at, 0, 10) AS workout_date FROM workouts ORDER BY created_at');
     return workouts;
   }
 
@@ -148,6 +148,7 @@ class DBHelper {
     List<BodypartsWorkouts> bodypartsWorkoutsList = bodypartsWorkouts.isNotEmpty
         ? bodypartsWorkouts.map((c) => BodypartsWorkouts.fromMap(c)).toList()
         : [];
+    print(bodypartsWorkouts);
     return bodypartsWorkoutsList;
   }
 
@@ -194,12 +195,14 @@ class DBHelper {
     return result;
   }
 
+
+
   Future<List<Map<String, dynamic>>> getLatestWeightsRepsToday(int workout) async {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
     List<Map<String, dynamic>> result = await db.rawQuery('SELECT weight, target_num_time AS reps FROM sets WHERE SUBSTRING(sets.created_at, 0 ,10) = ? AND sets.workout = ?', [today, workout]);
-    print('$workout의 오늘 수행한  무게, 횟수는: $result');
+    // print('$workout의 오늘 수행한  무게, 횟수는: $result');
     return result;
   }
 
@@ -225,7 +228,7 @@ class DBHelper {
 
   }
 
-  Future<List<Map<String, dynamic>>> getTodayTargetWorkouts(List<Map<String, dynamic>> workoutIdList) async {
+  Future<List<Map<String, dynamic>>> getWholeSetsInfo(List<Map<String, dynamic>> workoutIdList) async {
     List<Map<String, dynamic>> result = [];
     Database db = await instance.database;
 

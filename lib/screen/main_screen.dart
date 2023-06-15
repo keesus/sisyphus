@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sisyphus/screen/add_workout_screen.dart';
 import 'package:sisyphus/screen/lazy_loading.dart';
@@ -9,7 +8,6 @@ import 'package:sisyphus/screen/workout_history_screen.dart';
 import '../db/evaluations.dart';
 import '../db/sets.dart';
 import '../db/db_helper.dart';
-import '../db/workouts.dart';
 import 'package:collection/collection.dart';
 
 enum TimerType { UP, DOWN }
@@ -29,7 +27,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   Duration myDuration = Duration(minutes: 0, seconds: 00);
   bool wasPause = false;
 
-  APP_STATUS workoutMode = APP_STATUS.FINISH;
+  late APP_STATUS workoutMode;
 
   late int timerMinutes;
   late int timerSeconds;
@@ -37,15 +35,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   late int newWeight;
   late int targetReps;
   late int newReps;
-  late List<Workouts> workouts;
-  late List<Sets> sets;
-  late Workouts nowWorkout;
   late int nowSetNumber;
   late String nowWorkoutName;
   late double _scale;
-
-
-  int id = 0;
 
   late List<Map<String, dynamic>> todayCompletedWorkouts;
   late List<Map<String, dynamic>> todayTargetWorkouts;
@@ -85,8 +77,18 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     nowSetNumber = 1;
     _scale = 100;
 
+    setAppStatus(APP_STATUS.IN_BREAK);
+
     todayCompletedWorkoutsInGroup = {};
     setTodayCompletedWorkouts();
+    setTargetWorkout();
+
+    Future.delayed(const Duration(milliseconds: 300), () async{
+      var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
+      setNowSetNumber(temp + 1);
+      setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
+    });
+
   }
 
 
@@ -220,37 +222,47 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: workoutMode == APP_STATUS.FINISH ? FloatingActionButton(
-          child: Icon(Icons.download),
+        floatingActionButton: workoutMode == APP_STATUS.IN_BREAK ? FloatingActionButton(
+          child: Icon(Icons.stop),
           onPressed: () {
-
-            setAppStatus(APP_STATUS.IN_BREAK);
-            setState(() {
-              workoutIndex = 0;
-            });
-
-            setTargetWorkout();
-
-            Future.delayed(const Duration(milliseconds: 300), () async{
+            showDialog(
+                context: context,
+                builder: (BuildContext context) => AlertDialog(
+                    title: Text('운동을 종료할까요?'),
+                    actions: [
+                      TextButton(
+                          onPressed: () {
+                            setState(() {
+                              if(countTimer != null) {
+                                stopTimer();
+                                resetTimer(0, 0);
+                              }
+                              setAppStatus(APP_STATUS.FINISH);
+                            });
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('네')
+                      ),
+                      TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('아니오')
+                      )
+                    ]
+                )
+            );
+          },
+        ): workoutMode == APP_STATUS.FINISH ? FloatingActionButton(
+            child: Icon(Icons.play_arrow),
+            onPressed: () async {
+              setAppStatus(APP_STATUS.IN_BREAK);
+              setTargetWorkout();
               var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
               setNowSetNumber(temp + 1);
               setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
-
-            });
-
-          },
-        ): FloatingActionButton(
-          child: Icon(Icons.sports_score_rounded),
-          onPressed: () {
-            setState(() {
-              if(countTimer != null) {
-                stopTimer();
-                resetTimer(0, 0);
-              }
-              setAppStatus(APP_STATUS.FINISH);
-            });
-    },
-        )
+            }
+        ) : Container()
     );
   }
 
@@ -375,7 +387,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.stop, size: 90),
+          Icon(Icons.pause, size: 90),
           Text(
             '$nowSetNumber세트 종료',
             style: TextStyle(fontSize: 20),
@@ -574,12 +586,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   void setTargetWeightReps(int workoutID, setInNumber) async {
-    var todayTargetWorkoutId = await DBHelper.instance.getTodayTargetWorkoutId();
 
-    if(todayTargetWorkoutId.length > 0 ) {
-      var result = await DBHelper.instance.getTodayTargetWorkouts(todayTargetWorkoutId);
+    if(todayTargetWorkouts.length > 0 ) {
+      var result = await DBHelper.instance.getWholeSetsInfo(todayTargetWorkouts);
       var resultInWorkoutGroup = groupBy(result, (Map obj) => obj['workout_id']);
-
       resultInWorkoutGroup.keys.forEachIndexed((index, element) {
         if(element == workoutID) {
           //이전 수행했던 세트정보가 있으면 해당 세트 정보로 업데이트
@@ -587,7 +597,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             setNowWorkoutWeight(resultInWorkoutGroup.entries.toList()[index].value.toList()[setInNumber - 1]['weight']);
             setNowWorkoutReps(resultInWorkoutGroup.entries.toList()[index].value.toList()[setInNumber - 1]['reps']);
           }
-          //이전 수행했던 세트정보가 없으면 가장 최신의 세트 정보로 업데이트
+          //이전 수행했던 세트정보가 없으면 가장 오늘 중 최신의 세트 정보로 업데이트
           else {
             ScaffoldMessenger.of(context).showSnackBar(snackBar);
             setLatestWeightReps(workoutID);
@@ -597,23 +607,44 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     } else {
       setLatestWeightReps(workoutID);
     }
-
   }
   void setTargetWorkout() async {
-    var todayTargetWorkoutId = await DBHelper.instance.getTodayTargetWorkoutId();
-    var allWorkouts = await DBHelper.instance.getWorkouts();
-    if (todayTargetWorkoutId.length > 0) {
+    List<Map<String, dynamic>> recommendedWorkouts = await DBHelper.instance.getTodayTargetWorkoutId();
+    List<Map<String, dynamic>> allWorkouts = await DBHelper.instance.getWorkouts();
+    List<Map<String, dynamic>> targetWorkouts = List<Map<String, dynamic>>.from(recommendedWorkouts);
+
+    List<int> targetWorkoutIDList = [];
+    List<int> allWorkoutIDList = [];
+    List<int> otherWorkouts = [];
+
+    recommendedWorkouts.forEach((element) {
+      targetWorkoutIDList.add(int.parse(element['workout'].toString()));
+    });
+
+    allWorkouts.forEach((element) {
+      allWorkoutIDList.add(int.parse(element['workout'].toString()));
+    });
+
+    otherWorkouts = allWorkoutIDList.toSet().difference(targetWorkoutIDList.toSet()).toList();
+
+    for (int i = 0; i < otherWorkouts.length; i++) {
+      for (int j = 0; j < allWorkouts.length; j++) {
+        if(allWorkouts[j]['workout'] == otherWorkouts[i]) {
+          targetWorkouts.add(allWorkouts[j]);
+        }
+      }
+    }
+
+    if (recommendedWorkouts.length > 0) {
       setState(() {
-        todayTargetWorkouts = todayTargetWorkoutId;
+        todayTargetWorkouts = targetWorkouts;
       });
     } else {
       setState(() {
         todayTargetWorkouts = allWorkouts;
       });
     }
-
     setNowWorkoutName(todayTargetWorkouts.first['name']);
-
   }
 
   void setNowWorkoutName(String workoutName) {
