@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sisyphus/screen/add_workout_screen.dart';
-import 'package:sisyphus/screen/lazy_loading.dart';
 import 'package:sisyphus/screen/workout_history_screen.dart';
 import '../db/evaluations.dart';
 import '../db/sets.dart';
@@ -157,24 +156,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             IconButton(
                 onPressed: () {
                   Navigator.push(context,MaterialPageRoute(
-                      // builder: (context) => AddWorkoutScreen()
-                    builder: (context) => LazyLoading()
-                  )
-                  ).then((value) {
-                    //Navigation Stack이 다시 돌아왔을때 콜백
-                    setTargetWorkout();
-                    setState(() {
-                      workoutIndex = 1;
-                    });
-                  }
-                  );
-                },
-                icon: Icon(Icons.browser_not_supported)),
-            IconButton(
-                onPressed: () {
-                  Navigator.push(context,MaterialPageRoute(
                       builder: (context) => AddWorkoutScreen()
-                      // builder: (context) => LazyLoading()
                   )
                   ).then((value) {
                     //Navigation Stack이 다시 돌아왔을때 콜백
@@ -366,8 +348,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         final seconds = strDigits(myDuration.inSeconds.remainder(60));
         final minutes = strDigits(myDuration.inMinutes.remainder(60));
 
-
+        print('[insert] workout:');
+        print(todayTargetWorkouts[workoutIndex]['workout']);
         setID = await DBHelper.instance.insertSets(Sets(workout: todayTargetWorkouts[workoutIndex]['workout'], targetNumTime: this.targetReps, weight: this.targetWeight, createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
+        print('[insert] setID: $setID');
+
         await DBHelper.instance.insertEvaluations(Evaluations(set: setID, type: type, resultNumTime: this.targetReps, elapsedTime: '$minutes:$seconds', createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
 
         if (countTimer == null || countTimer!.isActive) {
@@ -512,6 +497,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                         setTodayCompletedWorkouts();
                                         var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
                                         setNowSetNumber(temp + 1);
+                                        print('삭제 후 set number: ' + nowSetNumber.toString());
+                                        setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
                                         Navigator.of(context).pop();
                                       }, child: Text('네')),
                                       TextButton(onPressed: () {
@@ -690,16 +677,15 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   void setTodayCompletedWorkouts() async {
+    todayCompletedWorkoutsInGroup = {};
+    List<Map<String, dynamic>> completedWorkouts = [];
 
-    var completedWorkouts = await DBHelper.instance.getCompletedWorkouts();
-    // print('completedWorkouts: $completedWorkouts');
+    completedWorkouts = await DBHelper.instance.getCompletedWorkouts();
 
     setState(() {
       todayCompletedWorkouts = completedWorkouts;
     });
-    print('todayCompletedWorkouts: $todayCompletedWorkouts');
     todayCompletedWorkoutsInGroup = groupBy(todayCompletedWorkouts, (Map obj) => obj['name']).cast<String, List>();
-    // print('todayCompletedWorkoutsInGroup : $todayCompletedWorkoutsInGroup');
   }
 
   void startTimer(TimerType type) {

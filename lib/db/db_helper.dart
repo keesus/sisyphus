@@ -133,6 +133,13 @@ class DBHelper {
     return setList;
   }
 
+  Future<List<Map<String, dynamic>>> getSetsTemp() async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> sets = await db.query('sets', orderBy: 'created_at');
+    return sets;
+  }
+
+
   Future<List<Evaluations>> getEvaluations() async {
     Database db = await instance.database;
     var evaluations = await db.query('evaluations', orderBy: 'created_at');
@@ -148,7 +155,7 @@ class DBHelper {
     List<BodypartsWorkouts> bodypartsWorkoutsList = bodypartsWorkouts.isNotEmpty
         ? bodypartsWorkouts.map((c) => BodypartsWorkouts.fromMap(c)).toList()
         : [];
-    print(bodypartsWorkouts);
+    // print(bodypartsWorkouts);
     return bodypartsWorkoutsList;
   }
 
@@ -177,11 +184,11 @@ class DBHelper {
   }
 
   Future<List<Map<String, dynamic>>> getCompletedWorkouts() async {
+    List<Map<String, dynamic>> result = [];
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTRING(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.id ', [today]);
-    print(result);
+    result = await db.rawQuery('SELECT DISTINCT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTRING(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.id ', [today]);
     return result;
   }
 
@@ -267,9 +274,9 @@ class DBHelper {
   static void deleteSets(int id) async {
     print('delete set id : $id');
     Database db = await instance.database;
-    await db.delete('sets', where: 'id = ?' , whereArgs: [id]);
+    // await db.delete('sets', where: 'id = ?' , whereArgs: [id]);
+    await db.rawDelete('DELETE FROM sets WHERE id = ? ', [id]);
   }
-
 
 }
 
