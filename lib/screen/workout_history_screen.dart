@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import 'package:intl/date_symbol_data_local.dart';
 import '../db/db_helper.dart';
 
 class WorkoutHistoryScreen extends StatefulWidget {
@@ -24,14 +24,17 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
 
   int dateGenerateNumber = 14;
 
+  late DateFormat daysFormat;
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting();
+    daysFormat = DateFormat.EEEE('ko');
+
     resultInGroup = {};
     setListInGroup=  {};
     _scrollController = ScrollController()..addListener(scrollListener);
     syncWorkoutDates();
-
 
     Future.delayed(Duration(milliseconds : 300),() {
       dates = List.generate(dateGenerateNumber, (index) => DateTime.now().subtract(Duration(days:dateGenerateNumber - (index+1)))).reversed.toList();
@@ -76,9 +79,11 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
                   controller: _scrollController,
                   itemCount: resultInGroup.length,
                   itemBuilder: (context, index) {
+                    print(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])));
                     return ExpansionTile(
-                        trailing: resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ? Icon(Icons.keyboard_arrow_down_outlined) : Icon(null)
-                        ,
+                        leading: Text(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])).substring(0,1)),
+                        title: Text(resultInGroup.keys.toList()[index].toString(), style: TextStyle(fontSize: 20)),
+                        trailing: resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ? Icon(Icons.keyboard_arrow_down_outlined) : Icon(null),
                         subtitle: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -86,7 +91,6 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
                             titleWithBodyparts(index, resultInGroup.entries.toList()[index].value.toList().length)
                           ],
                         ),
-                        title: Text(resultInGroup.keys.toList()[index].toString(), style: TextStyle(fontSize: 20)),
                         children: [
                           resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ?
                           SingleChildScrollView(
@@ -132,7 +136,7 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
       if(resultInGroup.entries.toList()[k].value.toList()[i]['bodypart'] != null) {
         temp.add(resultInGroup.entries.toList()[k].value.toList()[i]['bodypart']);
       } else {
-        temp.add('');
+        temp.add('휴식');
       }
     }
     List<String> bodypartsInSet = temp.toSet().toList();
@@ -260,16 +264,23 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
           resultInGroup.entries.toList()[index].value.toList()[j]['count']
               .toString(), style: _style)));
 
-      dataCells.add(DataCell(Text(
-          resultInGroup.entries.toList()[index].value.toList()[j]['minimum_weight']
-              .toString() + '~' + resultInGroup.entries.toList()[index].value.toList()[j]['maximum_weight']
-              .toString() + 'kg', style: _style)));
+      if (resultInGroup.entries.toList()[index].value.toList()[j]['minimum_weight'] == resultInGroup.entries.toList()[index].value.toList()[j]['maximum_weight']) {
+        dataCells.add(DataCell(Text(resultInGroup.entries.toList()[index].value.toList()[j]['minimum_weight'].toString() + 'kg')));
+      } else {
+        dataCells.add(DataCell(Text(
+            resultInGroup.entries.toList()[index].value.toList()[j]['minimum_weight']
+                .toString() + '~' + resultInGroup.entries.toList()[index].value.toList()[j]['maximum_weight']
+                .toString() + 'kg', style: _style)));
+      }
 
-      dataCells.add(DataCell(Text(
-          resultInGroup.entries.toList()[index].value.toList()[j]['minimum_reps']
-              .toString() + '~' + resultInGroup.entries.toList()[index].value.toList()[j]['maximum_reps']
-              .toString(), style: _style)));
-
+      if (resultInGroup.entries.toList()[index].value.toList()[j]['minimum_reps'] == resultInGroup.entries.toList()[index].value.toList()[j]['maximum_reps']) {
+        dataCells.add(DataCell(Text(resultInGroup.entries.toList()[index].value.toList()[j]['minimum_reps'].toString())));
+      } else {
+        dataCells.add(DataCell(Text(
+            resultInGroup.entries.toList()[index].value.toList()[j]['minimum_reps']
+                .toString() + '~' + resultInGroup.entries.toList()[index].value.toList()[j]['maximum_reps']
+                .toString(), style: _style)));
+      }
       dataRow.add(DataRow(cells: dataCells));
     }
     return dataRow;

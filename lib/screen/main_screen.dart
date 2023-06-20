@@ -161,7 +161,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   ).then((value) {
                     //Navigation Stack이 다시 돌아왔을때 콜백
                     setTargetWorkout();
-
                     setState(() {
                       workoutIndex = 1;
                     });
