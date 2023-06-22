@@ -126,7 +126,8 @@ class DBHelper {
 
   Future<List<Sets>> getSets() async {
     Database db = await instance.database;
-    var sets = await db.query('sets', orderBy: 'created_at');
+    var sets = await db.rawQuery('SELECT * FROM sets ORDER BY created_at DESC');
+    print(sets);
     List<Sets> setList = sets.isNotEmpty
         ? sets.map((c) => Sets.fromMap(c)).toList()
         : [];
@@ -188,7 +189,8 @@ class DBHelper {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    result = await db.rawQuery('SELECT DISTINCT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTRING(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.id ', [today]);
+    result = await db.rawQuery('SELECT DISTINCT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTRING(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.created_at DESC', [today]);
+    print(result);
     return result;
   }
 
@@ -271,11 +273,13 @@ class DBHelper {
   }
 
 
-  static void deleteSets(int id) async {
+  static void deleteSet(int id) async {
     print('delete set id : $id');
     Database db = await instance.database;
-    // await db.delete('sets', where: 'id = ?' , whereArgs: [id]);
     await db.rawDelete('DELETE FROM sets WHERE id = ? ', [id]);
+    var temp = await db.rawQuery('SELECT * FROM sets ORDER BY created_at DESC');
+    print('sets after delete');
+    print(temp);
   }
 
 }

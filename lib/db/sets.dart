@@ -6,7 +6,7 @@ class Sets {
   final String createdAt;
   final String updatedAt;
 
-  Sets({ this.id, this.workout, required this.targetNumTime, this.weight, required this.createdAt, required this.updatedAt});
+  Sets({ this.id, required this.workout, required this.targetNumTime, required this.weight, required this.createdAt, required this.updatedAt});
 
   factory Sets.fromMap(Map<String, dynamic> json) => Sets(
     id: json['id'],

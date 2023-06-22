@@ -82,7 +82,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     setTodayCompletedWorkouts();
     setTargetWorkout();
 
-    Future.delayed(const Duration(milliseconds: 300), () async{
+    Future.delayed(const Duration(milliseconds: 1500), () async{
+
       var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
       setNowSetNumber(temp + 1);
       setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
@@ -104,21 +105,20 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     switch (state)  {
       case AppLifecycleState.resumed:
         print("app in resumed");
-        setTodayCompletedWorkouts();
+        // setTodayCompletedWorkouts();
         if(wasPause == false) {
 
         } else {
           DateTime lastUnstoppedTimerValue = DateTime.parse(prefs.getString('timerStartTime')!);
-          print(lastUnstoppedTimerValue);
+          // print(lastUnstoppedTimerValue);
           Duration timeElapsed = DateTime.now().difference(lastUnstoppedTimerValue);
-          print('now: ' + DateTime.now().toString());
-          print('timeElapsed: ' + timeElapsed.toString());
-          if (todayCompletedWorkouts.length == 0) {
-            resetTimer(0, 0);
-          } else if (todayCompletedWorkouts.length > 0 ) {
+          // print('now: ' + DateTime.now().toString());
+          // print('timeElapsed: ' + timeElapsed.toString());
+          if (todayCompletedWorkouts.length > 0) {
             print("current duration: " + myDuration.toString());
             myDuration = myDuration + timeElapsed;
           }
+
           setState(() {
             wasPause = false;
           });
@@ -126,9 +126,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         break;
       case AppLifecycleState.inactive:
         print("app in inactive");
-        if(wasPause == false) {
-          prefs.setString('timerStartTime', DateTime.now().toString());
-        }
+        // if(wasPause == false) {
+        //   prefs.setString('timerStartTime', DateTime.now().toString());
+        // }
         break;
       case AppLifecycleState.paused:
         prefs.setString('timerStartTime', DateTime.now().toString());
@@ -351,6 +351,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         print(todayTargetWorkouts[workoutIndex]['workout']);
         setID = await DBHelper.instance.insertSets(Sets(workout: todayTargetWorkouts[workoutIndex]['workout'], targetNumTime: this.targetReps, weight: this.targetWeight, createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
         print('[insert] setID: $setID');
+        print('sets after insert');
+        var temp = await DBHelper.instance.getSets();
 
         await DBHelper.instance.insertEvaluations(Evaluations(set: setID, type: type, resultNumTime: this.targetReps, elapsedTime: '$minutes:$seconds', createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
 
@@ -492,7 +494,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                 title: Text('세트를 삭제합니다.'),
                                     actions: [
                                       TextButton(onPressed: () async {
-                                        DBHelper.deleteSets(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['id']);
+                                        DBHelper.deleteSet(todayCompletedWorkoutsInGroup.entries.toList()[index].value.reversed.toList()[i]['id']);
                                         setTodayCompletedWorkouts();
                                         var temp = await DBHelper.instance.getCompletedSetsToday(todayTargetWorkouts[workoutIndex]['workout']);
                                         setNowSetNumber(temp + 1);
