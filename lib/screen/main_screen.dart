@@ -525,7 +525,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   Widget controlPanel(int targetWeight, int targetReps) {
-    TextStyle _style = TextStyle(color: Color(0xff04A777));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -536,13 +535,13 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(flex: 1, child: TextButton(child: Text('-10', style: _style,), onPressed: () => reduceWeight(10))),
-              Expanded(flex: 1,child: TextButton(child: Text('-5', style: _style), onPressed: () => reduceWeight(5))),
-              Expanded(flex: 1,child: TextButton(child: Text('-1', style: _style), onPressed: () => reduceWeight(1))),
+              Expanded(flex: 1, child: TextButton(child: Text('-10'), onPressed: () => reduceWeight(10))),
+              Expanded(flex: 1,child: TextButton(child: Text('-5'), onPressed: () => reduceWeight(5))),
+              Expanded(flex: 1,child: TextButton(child: Text('-1'), onPressed: () => reduceWeight(1))),
               Expanded(flex: 2,child: Text(textAlign: TextAlign.center,'$targetWeight kg', style: TextStyle(fontSize: 20))),
-              Expanded(flex: 1,child: TextButton(child: Text('+1', style: _style), onPressed: () => addWeight(1))),
-              Expanded(flex: 1,child: TextButton(child: Text('+5', style: _style), onPressed: () => addWeight(5))),
-              Expanded(flex: 1,child: TextButton(child: Text('+10', style: _style), onPressed: () => addWeight(10))),
+              Expanded(flex: 1,child: TextButton(child: Text('+1'), onPressed: () => addWeight(1))),
+              Expanded(flex: 1,child: TextButton(child: Text('+5'), onPressed: () => addWeight(5))),
+              Expanded(flex: 1,child: TextButton(child: Text('+10'), onPressed: () => addWeight(10))),
             ],
           ),
         ),
@@ -551,14 +550,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TextButton(child: Text('-5', style: _style), onPressed: () => reduceReps(5)),
-              TextButton(child: Text('-1', style: _style), onPressed: () => reduceReps(1)),
+              TextButton(child: Text('-5'), onPressed: () => reduceReps(5)),
+              TextButton(child: Text('-1'), onPressed: () => reduceReps(1)),
               Text(
                 '$targetReps회',
                 style: TextStyle(fontSize: 20),
               ),
-              TextButton(child: Text('+1', style: _style), onPressed: () => addReps(1)),
-              TextButton(child: Text('+5', style: _style), onPressed: () => addReps(5)),
+              TextButton(child: Text('+1'), onPressed: () => addReps(1)),
+              TextButton(child: Text('+5'), onPressed: () => addReps(5)),
 
             ],
           ),
