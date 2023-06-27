@@ -79,7 +79,7 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
                   controller: _scrollController,
                   itemCount: resultInGroup.length,
                   itemBuilder: (context, index) {
-                    print(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])));
+                    // print(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])));
                     return ExpansionTile(
                         leading: Text(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])).substring(0,1)),
                         title: Text(resultInGroup.keys.toList()[index].toString(), style: TextStyle(fontSize: 20)),

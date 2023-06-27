@@ -60,6 +60,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 
   @override
   void initState() {
+
     WidgetsBinding.instance.addObserver(this);
     super.initState();
     nowWorkoutName = '';
@@ -188,14 +189,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             padding: const EdgeInsets.all(10.0),
             child: Column(
               children: [
-                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? workoutInfo() : Container(),
-                SizedBox(height: 20),
-                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? counter() : Container(),
-                SizedBox(height: 20),
-                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? controlPanel(targetWeight, targetReps) : Container(),
-                SizedBox(height: 20),
-                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? startStopButton() : Container(),
-                SizedBox(height: 20),
+                workoutMode == APP_STATUS.IN_WORKOUT || workoutMode == APP_STATUS.IN_BREAK ? inWorkoutWidgets() : Container(),
                 menuLabel('오늘의 운동'),
                 todayCompletedSets()
               ],
@@ -244,6 +238,21 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               setTargetWeightReps(todayTargetWorkouts[workoutIndex]['workout'], nowSetNumber);
             }
         ) : Container()
+    );
+  }
+
+  Widget inWorkoutWidgets() {
+    return Column(
+      children: [
+        workoutInfo(),
+        SizedBox(height: 20),
+        counter(),
+        SizedBox(height: 20),
+        controlPanel(targetWeight, targetReps),
+        SizedBox(height: 20),
+        startStopButton(),
+        SizedBox(height: 20),
+      ],
     );
   }
 
@@ -347,11 +356,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         final seconds = strDigits(myDuration.inSeconds.remainder(60));
         final minutes = strDigits(myDuration.inMinutes.remainder(60));
 
-        print('[insert] workout:');
-        print(todayTargetWorkouts[workoutIndex]['workout']);
         setID = await DBHelper.instance.insertSets(Sets(workout: todayTargetWorkouts[workoutIndex]['workout'], targetNumTime: this.targetReps, weight: this.targetWeight, createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
-        print('[insert] setID: $setID');
-        print('sets after insert');
         var temp = await DBHelper.instance.getSets();
 
         await DBHelper.instance.insertEvaluations(Evaluations(set: setID, type: type, resultNumTime: this.targetReps, elapsedTime: '$minutes:$seconds', createdAt: DateTime.now().toIso8601String(), updatedAt: DateTime.now().toIso8601String()));
@@ -680,9 +685,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   void setTodayCompletedWorkouts() async {
     todayCompletedWorkoutsInGroup = {};
     List<Map<String, dynamic>> completedWorkouts = [];
-
     completedWorkouts = await DBHelper.instance.getCompletedWorkouts();
-
     setState(() {
       todayCompletedWorkouts = completedWorkouts;
     });

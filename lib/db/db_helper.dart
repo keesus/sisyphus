@@ -19,6 +19,7 @@ class DBHelper {
   Future<Database> get database async => _database ??= await _initDatabase();
 
   Future<Database> _initDatabase() async {
+
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, 'database.db');
     return await openDatabase(
@@ -49,6 +50,7 @@ class DBHelper {
 
   }
   Future _onCreate(Database db, int version) async {
+
     await db.execute('''
     CREATE TABLE workouts(
       id INTEGER PRIMARY KEY,
@@ -120,7 +122,7 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getWorkouts() async {
     Database db = await instance.database;
-    List<Map<String, dynamic>> workouts = await db.rawQuery('SELECT id AS workout, name, SUBSTRING(created_at, 0, 10) AS workout_date FROM workouts ORDER BY created_at');
+    List<Map<String, dynamic>> workouts = await db.rawQuery('SELECT id AS workout, name, SUBSTR(created_at, 0, 10) AS workout_date FROM workouts ORDER BY created_at');
     return workouts;
   }
 
@@ -133,6 +135,7 @@ class DBHelper {
         : [];
     return setList;
   }
+
 
   Future<List<Map<String, dynamic>>> getSetsTemp() async {
     Database db = await instance.database;
@@ -171,7 +174,7 @@ class DBHelper {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT (julianday(?) -  julianday(sets.created_at)) AS datediff, bodyparts_workouts.bodypart, COUNT(sets.id) AS count, MIN(sets.weight) AS minimum_weight, MAX(sets.weight) AS maximum_weight, ROUND(AVG(sets.weight), 1) AS average_weight, MIN(sets.target_num_time) AS minimum_reps, MAX(sets.target_num_time) AS maximum_reps, ROUND(AVG(sets.target_num_time), 1) AS average_reps, SUM(sets.target_num_time * sets.weight) AS volumn, workouts.name, sets.weight, sets.target_num_time, sets.created_at FROM sets, workouts, bodyparts_workouts WHERE bodyparts_workouts.workout = workouts.id AND sets.workout = workouts.id GROUP BY SUBSTRING(sets.created_at, 0, 10) , workouts.id ORDER BY sets.created_at', [today]);
+    List<Map<String, dynamic>> result = await db.rawQuery('SELECT (julianday(?) -  julianday(sets.created_at)) AS datediff, bodyparts_workouts.bodypart, COUNT(sets.id) AS count, MIN(sets.weight) AS minimum_weight, MAX(sets.weight) AS maximum_weight, ROUND(AVG(sets.weight), 1) AS average_weight, MIN(sets.target_num_time) AS minimum_reps, MAX(sets.target_num_time) AS maximum_reps, ROUND(AVG(sets.target_num_time), 1) AS average_reps, SUM(sets.target_num_time * sets.weight) AS volumn, workouts.name, sets.weight, sets.target_num_time, sets.created_at FROM sets, workouts, bodyparts_workouts WHERE bodyparts_workouts.workout = workouts.id AND sets.workout = workouts.id GROUP BY SUBSTR(sets.created_at, 0, 10) , workouts.id ORDER BY sets.created_at', [today]);
     return result;
   }
 
@@ -188,9 +191,10 @@ class DBHelper {
     List<Map<String, dynamic>> result = [];
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
+
+
     Database db = await instance.database;
-    result = await db.rawQuery('SELECT DISTINCT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTRING(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.created_at DESC', [today]);
-    print(result);
+        result = await db.rawQuery('SELECT DISTINCT sets.id, sets.workout, sets.weight, sets.target_num_time, workouts.name, sets.created_at, evaluations.type, evaluations.elapsed_time FROM sets, workouts, evaluations WHERE SUBSTR(sets.created_at, 0, 10) = ? AND sets.workout = workouts.id AND evaluations.set_id = sets.id ORDER BY sets.created_at',[today]);
     return result;
   }
 
@@ -199,7 +203,7 @@ class DBHelper {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> queryResult = await db.rawQuery('SELECT COUNT(*) AS sets FROM sets WHERE sets.workout = ? AND SUBSTRING(sets.created_at, 0, 10) = ?',[workout, today]);
+    List<Map<String, dynamic>> queryResult = await db.rawQuery('SELECT COUNT(*) AS sets FROM sets WHERE sets.workout = ? AND SUBSTR(sets.created_at, 0, 10) = ?',[workout, today]);
     int result = queryResult.first['sets'];
     return result;
   }
@@ -210,8 +214,7 @@ class DBHelper {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT weight, target_num_time AS reps FROM sets WHERE SUBSTRING(sets.created_at, 0 ,10) = ? AND sets.workout = ?', [today, workout]);
-    // print('$workout의 오늘 수행한  무게, 횟수는: $result');
+    List<Map<String, dynamic>> result = await db.rawQuery('SELECT weight, target_num_time AS reps FROM sets WHERE SUBSTR(sets.created_at, 0 ,10) = ? AND sets.workout = ?', [today, workout]);
     return result;
   }
 
@@ -219,22 +222,17 @@ class DBHelper {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String today = formatter.format(DateTime.now());
     Database db = await instance.database;
-    List<Map<String, dynamic>> latestWorkoutDate = await db.rawQuery('SELECT SUBSTRING(created_at, 0, 10) as created_at FROM sets WHERE SUBSTRING(created_at, 0, 10) < ? GROUP BY SUBSTRING(created_at, 0, 10) ORDER BY id DESC',[today]);
-    // print('최근 운동한 날짜: $latestWorkoutDate');
+    List<Map<String, dynamic>> latestWorkoutDate = await db.rawQuery('SELECT SUBSTR(created_at, 0, 10) as created_at FROM sets WHERE SUBSTR(created_at, 0, 10) < ? GROUP BY SUBSTR(created_at, 0, 10) ORDER BY id DESC',[today]);
     if(latestWorkoutDate.length == 0) {
       return [];
     }
-    List<Map<String, dynamic>> latestWorkoutId = await db.rawQuery('SELECT sets.workout FROM sets WHERE SUBSTRING(created_at, 0, 10) = ? GROUP BY sets.workout', [latestWorkoutDate.first['created_at'].toString().substring(0, 10)]);
-    // print('최근 운동 id' + latestWorkoutId.first.toString());
-    List<Map<String, dynamic>> secondLatestWorkoutDate = await db.rawQuery('SELECT SUBSTRING(created_at, 0, 10) as created_at FROM sets WHERE SUBSTRING(created_at, 0, 10) < ? AND workout = ? ORDER BY id DESC',[latestWorkoutDate.first['created_at'].toString().substring(0, 10), latestWorkoutId.first['workout']]);
-    // print('두번째 최근 운동 날짜' + secondLatestWorkoutDate.toString());
+    List<Map<String, dynamic>> latestWorkoutId = await db.rawQuery('SELECT sets.workout FROM sets WHERE SUBSTR(created_at, 0, 10) = ? GROUP BY sets.workout', [latestWorkoutDate.first['created_at']]);
+    List<Map<String, dynamic>> secondLatestWorkoutDate = await db.rawQuery('SELECT SUBSTR(created_at, 0, 10) as created_at FROM sets WHERE SUBSTR(created_at, 0, 10) < ? AND workout = ? ORDER BY id DESC',[latestWorkoutDate.first['created_at'], latestWorkoutId.first['workout']]);
     if(secondLatestWorkoutDate.length == 0) {
       return [];
     }
-    List<Map<String, dynamic>> targetWorkoutIds = await db.rawQuery('SELECT sets.workout, workouts.name, SUBSTRING(sets.created_at, 0, 10) as workout_date FROM sets, workouts WHERE sets.workout = workouts.id AND SUBSTRING(sets.created_at, 0, 10) > ? AND SUBSTRING(sets.created_at, 0, 10) < ? GROUP BY sets.workout ORDER BY sets.created_at ASC', [secondLatestWorkoutDate.first['created_at'].toString().substring(0, 10), today]);
-    // print('targetWorkoutIDs: $targetWorkoutIds');
+    List<Map<String, dynamic>> targetWorkoutIds = await db.rawQuery('SELECT sets.workout, workouts.name, SUBSTR(sets.created_at, 0, 10) as workout_date FROM sets, workouts WHERE sets.workout = workouts.id AND SUBSTR(sets.created_at, 0, 10) > ? AND SUBSTR(sets.created_at, 0, 10) < ? GROUP BY sets.workout ORDER BY sets.created_at ASC', [secondLatestWorkoutDate.first['created_at'].toString().substring(0, 10), today]);
    return targetWorkoutIds;
-
   }
 
   Future<List<Map<String, dynamic>>> getWholeSetsInfo(List<Map<String, dynamic>> workoutIdList) async {
@@ -242,7 +240,7 @@ class DBHelper {
     Database db = await instance.database;
 
     for (int i = 0; i < workoutIdList.length; i ++) {
-      var temp = await db.rawQuery('SELECT workouts.id AS workout_id, workouts.name AS workout_name, evaluations.result_num_time AS reps, sets.weight, sets.created_at AS workout_date FROM sets, evaluations, workouts WHERE workouts.id = sets.workout AND evaluations.set_id = sets.id AND sets.workout = ? AND SUBSTRING(sets.created_at, 0, 10) = ? ORDER BY sets.id ASC', [workoutIdList[i]['workout'], workoutIdList[i]['workout_date']]);
+      var temp = await db.rawQuery('SELECT workouts.id AS workout_id, workouts.name AS workout_name, evaluations.result_num_time AS reps, sets.weight, sets.created_at AS workout_date FROM sets, evaluations, workouts WHERE workouts.id = sets.workout AND evaluations.set_id = sets.id AND sets.workout = ? AND SUBSTR(sets.created_at, 0, 10) = ? ORDER BY sets.id ASC', [workoutIdList[i]['workout'], workoutIdList[i]['workout_date']]);
       result.addAll(temp);
       }
 
@@ -271,7 +269,6 @@ class DBHelper {
     Database db = await instance.database;
     await db.update('sets', data, where: 'id = ?', whereArgs: [setID]);
   }
-
 
   static void deleteSet(int id) async {
     print('delete set id : $id');
