@@ -75,36 +75,45 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
             children: [
               isLoading == true ? Center(child: CircularProgressIndicator()) : Scrollbar(
                 controller: _scrollController,
-                child: ListView.builder(
+                child: ListView.separated(
+                  separatorBuilder: (BuildContext context, int index) => Divider(thickness: 1,),
                   controller: _scrollController,
                   itemCount: resultInGroup.length,
                   itemBuilder: (context, index) {
-                    // print(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])));
-                    return ExpansionTile(
-                        leading: Text(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])).substring(0,1)),
-                        title: Text(resultInGroup.keys.toList()[index].toString(), style: TextStyle(fontSize: 20)),
-                        trailing: resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ? Icon(Icons.keyboard_arrow_down_outlined) : Icon(null),
-                        subtitle: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    return Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                          // leading: Text(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])).substring(0,1)),
+                          title: Row(
+                            children: [
+                              Text(resultInGroup.keys.toList()[index].toString()),
+                              Text(' '),
+                              Text(daysFormat.format(DateTime.parse(resultInGroup.keys.toList()[index])).substring(0,1))
+                            ],
+                          ),
+                          trailing: resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ? Icon(Icons.keyboard_arrow_down_outlined) : Icon(null),
+                          subtitle: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              calDateDiffInString(resultInGroup.entries.toList()[index].value.toList().first['datediff'].ceil()),
+                              titleWithBodyparts(index, resultInGroup.entries.toList()[index].value.toList().length)
+                            ],
+                          ),
                           children: [
-                            calDateDiffInString(resultInGroup.entries.toList()[index].value.toList().first['datediff'].ceil()),
-                            titleWithBodyparts(index, resultInGroup.entries.toList()[index].value.toList().length)
-                          ],
-                        ),
-                        children: [
-                          resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ?
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columnSpacing: 20,
-                              horizontalMargin: 0,
-                              columns: _getColumns(),
-                              rows: _getRows(index),
-                            ),
-                          )
-                              : Container()
-                        ]
-                      // resultInGroup.entries.toList()[index].value.toList().map((e) => Text(e['bodypart'].toString())).toList()
+                            resultInGroup.entries.toList()[index].value.toList().first['bodypart'] != null ?
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: DataTable(
+                                columnSpacing: 20,
+                                horizontalMargin: 0,
+                                columns: _getColumns(),
+                                rows: _getRows(index),
+                              ),
+                            )
+                                : Container()
+                          ]
+                        // resultInGroup.entries.toList()[index].value.toList().map((e) => Text(e['bodypart'].toString())).toList()
+                      ),
                     );
                   },
                 ),
@@ -145,6 +154,9 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
     bodypartsInSet.forEach((element) {
       result += element.toString() + ' ';
     });
+    if(result == '휴식 ') {
+      return Icon(Icons.battery_charging_full_rounded);
+    }
     return Text(result);
   }
   void syncWorkoutDates() async {
