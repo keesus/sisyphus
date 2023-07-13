@@ -106,15 +106,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     switch (state)  {
       case AppLifecycleState.resumed:
         print("app in resumed");
-        // setTodayCompletedWorkouts();
         if(wasPause == false) {
 
         } else {
           DateTime lastUnstoppedTimerValue = DateTime.parse(prefs.getString('timerStartTime')!);
-          // print(lastUnstoppedTimerValue);
           Duration timeElapsed = DateTime.now().difference(lastUnstoppedTimerValue);
-          // print('now: ' + DateTime.now().toString());
-          // print('timeElapsed: ' + timeElapsed.toString());
           if (todayCompletedWorkouts.length > 0) {
             print("current duration: " + myDuration.toString());
             myDuration = myDuration + timeElapsed;
@@ -127,9 +123,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         break;
       case AppLifecycleState.inactive:
         print("app in inactive");
-        // if(wasPause == false) {
-        //   prefs.setString('timerStartTime', DateTime.now().toString());
-        // }
         break;
       case AppLifecycleState.paused:
         prefs.setString('timerStartTime', DateTime.now().toString());
@@ -311,7 +304,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 
   Widget startStopButton() {
     int setID;
-    //일단 다 clear 한것으로
     String type = 'clear';
 
     return workoutMode == APP_STATUS.IN_BREAK
@@ -404,7 +396,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               tween: Tween<double>(begin: _scale, end: _scale),
               builder: (_, double size, __) => Text('$minutes:$seconds', style: TextStyle(fontWeight: FontWeight.w100, color: Colors.black, fontSize: size))
           )
-              // child: Text('$minutes:$seconds', style: const TextStyle(fontWeight: FontWeight.w100, color: Colors.black, fontSize: 80))),
         ],
       ),
     );
