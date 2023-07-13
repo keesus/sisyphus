@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:sisyphus/db/bodyparts_workouts.dart';
 import '../db/db_helper.dart';
 import '../db/workouts.dart';
-import '../utils/dropdownfield.dart';
 
 class AddWorkoutScreen extends StatefulWidget {
   const AddWorkoutScreen({Key? key}) : super(key: key);
